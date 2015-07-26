@@ -99,6 +99,9 @@ public class FPGrowth {
             FPTree node = new FPTree(key);
             headerTable.add(node);
         }
+
+        // sort header table
+        Collections.sort(headerTable, new HeaderTableComparator());
         File inputFile = new File(filepath);
 //        ArrayList<Integer> transaction = new ArrayList<Integer>();
         ArrayList<String> transaction = new ArrayList<>();
@@ -189,6 +192,15 @@ public class FPGrowth {
 //            System.out.printf("%d -> %d\n", key, fList.get(key));
             System.out.printf("%s -> %d\n", key, fList.get(key));
 
+        }
+    }
+
+    // inner class comparator that sort header table in order against sorted frequent item list
+    class HeaderTableComparator implements Comparator<FPTree> {
+
+        @Override
+        public int compare(FPTree o1, FPTree o2) {
+            return Integer.compare(sortedFList.indexOf(o2.item), sortedFList.indexOf(o1.item));
         }
     }
 }
