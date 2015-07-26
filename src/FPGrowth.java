@@ -1,5 +1,6 @@
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.lang.reflect.Array;
 import java.util.*;
 
 /**
@@ -181,6 +182,66 @@ public class FPGrowth {
         insertTree(node, transaction, headerTable);
 
 
+    }
+
+    public Map<String, Integer> fpGrowth(FPTree fpTree, String pattern, ArrayList<FPTree> headerTable) {
+        // the return pattern
+        Map<String, Integer> frequentPattern = new HashMap<>();
+
+        // the P frequent pattern set, referring to the FPGrowth paper, P is generated from single-prefix path
+        Map<String, Integer> P = new HashMap<>();
+
+        // the Q frequent pattern set, referring to FPGrowth paper, Q is generated from multipath FP-tree
+        Map<String, Integer> Q = new HashMap<>();
+
+        // check if fpTree consists single-prefix path
+        if(fpTree.children != null && fpTree.children.size() == 1) { // 1 element imply only have one path
+            // find longest single-prefix path
+            // start from the first node
+            FPTree pointer = fpTree.children.get(0);
+            ArrayList<String> singlePrefixItem = new ArrayList<>();
+            do {
+                singlePrefixItem.add(pointer.item);
+                pointer = pointer.children.get(0);
+            }while(pointer.children != null && pointer.children.size() == 1);
+
+            // preserve the end node
+            FPTree endNode = pointer.parent;
+
+            // change pointer's parent to a pseudo null root and parent's children to null
+            pointer.parent.children = null;
+            FPTree pseudoParent = new FPTree(null);
+            pointer.parent = pseudoParent;
+
+            // build a hashmap to store the generated pattern
+            Map<String, Integer> singlePrefixPathPattern = new HashMap<>();
+            for(FPTree from = fpTree.children.get(0); from != endNode.parent; from = from.children.get(0)) {
+                for(FPTree to = from.children.get(0); to != endNode; to = to.children.get(0)) {
+                    String currentPattern = "";
+                    int patternCount = 0;
+                    for(FPTree start = from; start != to; start = start.children.get(0)) {
+                        currentPattern += start.item + " ";
+                        patternCount = start.count;
+                    }
+                    singlePrefixPathPattern.put(currentPattern, patternCount);
+                }
+            }
+
+            // form P pattern set by combining single-prefix path's pattern with incoming patter base
+            for(String key: singlePrefixPathPattern.keySet()) {
+                String combinedPattern;
+                if(pattern != null && pattern.contentEquals("")) {
+                    combinedPattern = key + " " + pattern;
+                    P.put(combinedPattern, singlePrefixPathPattern.get(key));
+                }
+                else {
+                    P.put(key, singlePrefixPathPattern.get(key));
+                }
+            }
+        }
+        else { // generate the multipath FP-Tree
+
+        }
     }
 
     private void printDebugMessage() {
