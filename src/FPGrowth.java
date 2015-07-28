@@ -194,6 +194,57 @@ public class FPGrowth {
 
     }
 
+    // the conditional FP Tree insert function
+    private void insertTree(FPTree fpTree, ArrayList<String> transaction, int countOfTransaction, ArrayList<FPTree> headerTable) {
+        // to prevent empty transaction either from recursive call or first call from buildFPTree
+        if(transaction.isEmpty()) {
+            return;
+        }
+//        int item = transaction.get(0);
+        String item = transaction.get(0);
+
+        FPTree node = null;
+        // check if first element of transaction has same name with one of the children of fptree
+        boolean found = false;
+        for(FPTree child: fpTree.children) {
+            if(child.item.compareToIgnoreCase(item) == 0) {
+//            if(child.item == item) {
+                found = true;
+                child.count += countOfTransaction;
+                node = child;
+                break;
+            }
+        }
+
+        if(!found) {
+            node = new FPTree(item);
+            node.parent = fpTree;
+            fpTree.children.add(node);
+            // use an iterator to find the correct header
+            Iterator<FPTree> iterator = headerTable.iterator();
+            FPTree header = null;
+            while(iterator.hasNext()) {
+                header = iterator.next();
+//                if(header.item == item) {
+                if(header.item.compareToIgnoreCase(item) == 0) {
+                    break;
+                }
+            }
+            while(header.next != null) {
+                header = header.next;
+            }
+            header.next = node;
+        }
+
+        // remove the first element of transaction
+        transaction.remove(0);
+
+        // recursively call insertTree, stop at the beginning when transaction has no element
+        insertTree(node, transaction, countOfTransaction, headerTable);
+
+
+    }
+
     public void fpGrowth(FPTree fpTree, String alpha, int alphaSupport, ArrayList<FPTree> headerTable, Map<String, Integer> frequentList, HashMap<String, Integer> frequentPatternSet) {
 //        // first check if the FPTree contains a single path
 //        boolean singlePath = true;
@@ -551,7 +602,7 @@ public class FPGrowth {
             Collections.sort(transaction, (o1, o2) ->
                     (Integer.compare(conditionalSortedFList.indexOf(o1), conditionalSortedFList.indexOf(o2))));
 
-            insertTree(conditionalFPTree, transaction, conditionalHeaderTable);
+            insertTree(conditionalFPTree, transaction, conditionalPatternBase.get(conditionalPattern), conditionalHeaderTable);
 
             // clear transaction before next line
             transaction.clear();
