@@ -1,3 +1,5 @@
+import sun.reflect.generics.tree.Tree;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.lang.reflect.Array;
@@ -8,9 +10,12 @@ import java.util.*;
  */
 public class FPGrowth {
 
+    private boolean printFrequentPattern = false;
+    private boolean printRules = false;
     private String filepath;
     private double minsup;
     private int threshold;
+    private double minconf;
 //    private Map<Integer, Integer> fList;
     private Map<String, Integer> fList;
 //    private List<Integer> sortedFList;
@@ -18,9 +23,10 @@ public class FPGrowth {
 
 
 
-    public FPGrowth(String filepath, double minsup) {
+    public FPGrowth(String filepath, double minsup, double minconf) {
         this.filepath = filepath;
         this.minsup = minsup;
+        this.minconf = minconf;
         this.fList = new HashMap<>();
 
         // build frequent item list
@@ -34,21 +40,29 @@ public class FPGrowth {
         buildFPTree(fpTree, headerTable);
 
         // run fp growth
-        HashMap<String, Integer> frequentPatternSet = new HashMap<>();
-        fpGrowth(fpTree, "", Integer.MAX_VALUE, headerTable, fList, frequentPatternSet);
+        HashMap<TreeSet<String>, Integer> frequentPatternSet = new HashMap<>();
+        fpGrowth(fpTree, null, Integer.MAX_VALUE, headerTable, fList, frequentPatternSet);
 
         // print frequent pattern
-        for(String key: frequentPatternSet.keySet()) {
-            System.out.printf("%s\t(%d)\n", key, frequentPatternSet.get(key));
+        if(printFrequentPattern){
+            for(TreeSet<String> key: frequentPatternSet.keySet()) {
+                System.out.printf("%s\t(%d)\n", key, frequentPatternSet.get(key));
+            }
         }
+
+        // print numbers of frequent pattern
+        System.out.printf("Number of frequent pattern: %d\n", frequentPatternSet.size());
+
+        // generate rules
+        generateRules(frequentPatternSet);
     }
 
     public FPGrowth() {
-        this("/home/mhwong/Desktop/dataset/test.csv", 0.6);    // default file path and minsup
+        this("/home/mhwong/Desktop/dataset/test.txt", 0.6, 0.6);    // default file path and minsup
     }
 
-    public FPGrowth(double minsup) {
-        this("/home/mhwong/Desktop/dataset/test.txt", minsup);    // default file path
+    public FPGrowth(double minsup, double minconf) {
+        this("/home/mhwong/Desktop/dataset/test.txt", minsup, minconf);    // default file path
     }
 
     private void buildFrequentItemList() {
@@ -246,7 +260,7 @@ public class FPGrowth {
 
     }
 
-    public void fpGrowth(FPTree fpTree, String alpha, int alphaSupport, ArrayList<FPTree> headerTable, Map<String, Integer> frequentList, HashMap<String, Integer> frequentPatternSet) {
+    public void fpGrowth(FPTree fpTree, TreeSet<String> alpha, int alphaSupport, ArrayList<FPTree> headerTable, Map<String, Integer> frequentList, HashMap<TreeSet<String>, Integer> frequentPatternSet) {
 //        // first check if the FPTree contains a single path
 //        boolean singlePath = true;
 //        int singlePathSupport = 0;
@@ -475,12 +489,14 @@ public class FPGrowth {
         // for each item in Q == for each item in Q's header table
         for(FPTree item: headerTable) {
             // generate pattern beta = item + alpha(incoming pattern) with support = item's support
-            String beta = "";
+            TreeSet<String> beta;
             if(alpha != null && !alpha.isEmpty()) {
-                beta = alpha + " " + item.item;
+                beta = new TreeSet<>(alpha);
+                beta.add(item.item);
             }
             else {
-                beta = item.item;
+                beta = new TreeSet<>();
+                beta.add(item.item);
             }
             int support = frequentList.get(item.item);
             int betaSupport = (alphaSupport < support) ? alphaSupport: support;
@@ -523,6 +539,7 @@ public class FPGrowth {
 //                    conditionalPatternBase.put(conditionalPattern, item.count);
 //                }
 //            }
+
             frequentPatternSet.put(beta, betaSupport);
             // build conditional FPTree
             FPTree conditionalFPTree = new FPTree(null);
@@ -635,5 +652,62 @@ public class FPGrowth {
         public int compare(FPTree o1, FPTree o2) {
             return Integer.compare(sortedFList.indexOf(o2.item), sortedFList.indexOf(o1.item));
         }
+    }
+
+    public void generateRules(HashMap<TreeSet<String>, Integer> frequentPatternSet) {
+        int numberOfRules = 0;
+        for(TreeSet<String> frequentPattern: frequentPatternSet.keySet()) {
+            if(frequentPattern.size() >= 2) {
+                List<TreeSet<String>> subset = buildPowerSet(frequentPattern);
+                for(TreeSet<String> set: subset) {
+                    double conf = (double)frequentPatternSet.get(frequentPattern) / (double) frequentPatternSet.get(set);
+                    if(conf >= minconf) {
+                        numberOfRules++;
+                        String subSetString = "{ ";
+                        Iterator subSetIterator = set.iterator();
+                        while(subSetIterator.hasNext()) {
+                            subSetString += subSetIterator.next() + " ";
+                        }
+                        subSetString += "}";
+
+                        String frequentMinusSubSetString = "{ ";
+                        TreeSet<String> copyOfFrequent = new TreeSet<>(frequentPattern);
+                        if(copyOfFrequent.removeAll(set)) {
+                            Iterator frequentMinusSubSetIterator = copyOfFrequent.iterator();
+                            while(frequentMinusSubSetIterator.hasNext()) {
+                                frequentMinusSubSetString += frequentMinusSubSetIterator.next() + " ";
+                            }
+                            frequentMinusSubSetString += "}";
+                        }
+                        if(printRules) {
+                            System.out.printf("%s => %s\n", subSetString, frequentMinusSubSetString);
+                        }
+                    }
+                }
+            }
+        }
+
+        // print number of rules
+        System.out.printf("Number of rule: %d\n", numberOfRules);
+    }
+
+    public List<TreeSet<String>> buildPowerSet(TreeSet<String> inputSet) {
+        List<TreeSet<String>> subSets = new ArrayList<>();
+        for(String addToSets: inputSet) {
+            List<TreeSet<String>> newSets = new ArrayList<>();
+            for(Set<String> curSet: subSets) {
+                TreeSet<String> copyPlusNew = new TreeSet<>();
+                copyPlusNew.addAll(curSet);
+                copyPlusNew.add(addToSets);
+                if(inputSet.size() > copyPlusNew.size()) {
+                    newSets.add(copyPlusNew);
+                }
+            }
+            TreeSet<String> newValSet = new TreeSet<>();
+            newValSet.add(addToSets);
+            newSets.add(newValSet);
+            subSets.addAll(newSets);
+        }
+        return subSets;
     }
 }
