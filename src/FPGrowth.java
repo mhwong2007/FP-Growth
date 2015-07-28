@@ -44,7 +44,7 @@ public class FPGrowth {
     }
 
     public FPGrowth() {
-        this("/home/mhwong/Desktop/dataset/test.txt", 0.6);    // default file path and minsup
+        this("/home/mhwong/Desktop/dataset/test.csv", 0.6);    // default file path and minsup
     }
 
     public FPGrowth(double minsup) {
@@ -218,6 +218,7 @@ public class FPGrowth {
 
         if(!found) {
             node = new FPTree(item);
+            node.count = countOfTransaction;
             node.parent = fpTree;
             fpTree.children.add(node);
             // use an iterator to find the correct header
@@ -483,9 +484,8 @@ public class FPGrowth {
             }
             int support = frequentList.get(item.item);
             int betaSupport = (alphaSupport < support) ? alphaSupport: support;
-
             // put pattern beta to Q frequent pattern set
-                    frequentPatternSet.put(beta, betaSupport);
+
 
             // construct beta's conditional pattern base
             HashMap<String, Integer> conditionalPatternBase = new HashMap<>();
@@ -504,10 +504,26 @@ public class FPGrowth {
                     conditionalPattern = conditionalPattern + " " + currentPathItem.item;
                     currentPathItem = currentPathItem.parent;
                 }
-                conditionalPatternBase.put(conditionalPattern, conditionalPatternSupport);
+                if(!conditionalPattern.isEmpty()) {
+                    conditionalPatternBase.put(conditionalPattern, conditionalPatternSupport);
+                }
                 currentPath = currentPath.next;
             }
-
+//            while(item.next != null) {
+//                item = item.next;
+//                betaSupport += item.count;
+//                String conditionalPattern = "";
+//                FPTree conditionalItem = item.parent;
+//
+//                while(!conditionalItem.isRoot) {
+//                    conditionalPattern = conditionalPattern + " " + conditionalItem.item;
+//                    conditionalItem = conditionalItem.parent;
+//                }
+//                if(!conditionalPattern.isEmpty()) {
+//                    conditionalPatternBase.put(conditionalPattern, item.count);
+//                }
+//            }
+            frequentPatternSet.put(beta, betaSupport);
             // build conditional FPTree
             FPTree conditionalFPTree = new FPTree(null);
             conditionalFPTree.isRoot = true;
